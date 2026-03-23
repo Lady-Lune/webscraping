@@ -10,11 +10,17 @@ class NewSpider(scrapy.Spider):
         }
 
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, category=None, year=None, month=None, day=None,*args, **kwargs):
         super().__init__(*args, **kwargs)
         self.options = {}  
+        self.arg_category = [x.strip() for x in category.split(",")] if category else None
+        self.arg_year = [x.strip() for x in year.split(",")] if year else None
+        self.arg_month = [x.strip().zfill(2) for x in month.split(",")] if month else None
+        self.arg_day = [x.strip() for x in day.split(",")] if day else None
+
 
     async def start(self):
+        self.logger.info("Starting spider with category=%s, year=%s, month=%s, day=%s", self.arg_category, self.arg_year, self.arg_month, self.arg_day) 
         yield scrapy.FormRequest(
             url=self.archive_url,
             headers=self.header,
@@ -39,7 +45,7 @@ class NewSpider(scrapy.Spider):
         }
 
         self.logger.info("Options: %s", self.options)
-        yield from self.manage_options()
+        yield from self.manage_options(category_arg=self.arg_category, year_arg=self.arg_year, month_arg=self.arg_month, day_arg=self.arg_day)
 
     def _get_opt_data(self, group):
         data = {}
@@ -56,18 +62,31 @@ class NewSpider(scrapy.Spider):
             
         return data
     
-    def manage_options(self,category='999',year='2006',month='01',day='999'):
+    def manage_options(self,category_arg=None, year_arg=None,month_arg=None,day_arg=None):
         option_name = list(self.options.keys())  # category, year, month, day
 
-        category_opts = list(self.options[option_name[0]].keys())
-        year_opts = list(self.options[option_name[1]].keys())
-        month_opts = list(self.options[option_name[2]].keys())
-        day_opts = list(self.options[option_name[3]].keys())
+        categories = list(self.options[option_name[0]].keys())
+        categories.remove("999")  # Remove the "All" option for categories
+        years = list(self.options[option_name[1]].keys())
+        months = list(self.options[option_name[2]].keys())
+        
+        days = list(self.options[option_name[3]].keys())
+        days.remove("999")  # Remove the "All" option for days
+        
+        category_opts = category_arg if category_arg else categories
+        year_opts = year_arg if year_arg else years
+        month_opts = month_arg if month_arg else months
+        day_opts = day_arg if day_arg else days
 
-        for category in category_opts[1:]:
+        # c = category_opts.index(category) if category in category_opts else 0
+        # y = year_opts.index(year) if year in year_opts else 0
+        # m = month_opts.index(month) if month in month_opts else 0
+        # d = day_opts.index(day) if day in day_opts else 0
+
+        for category in category_opts:
             for year in year_opts:
                 for month in month_opts:
-                    for day in day_opts[1:]:
+                    for day in day_opts:
                         self.logger.info("Submitting search with category=%s, year=%s, month=%s, day=%s", category, year, month, day)
                         yield scrapy.FormRequest(
                             url=self.archive_url,
